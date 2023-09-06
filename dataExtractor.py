@@ -20,6 +20,7 @@ def createDataBase():
     cursor.close()
     connection.close()
 
+# Class for turning structured pd dataframes into review SQL table
 class dataTransform:
     def __init__(self, dataBase):
         self.dataBase = dataBase
