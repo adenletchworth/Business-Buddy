@@ -1,4 +1,5 @@
 import numpy as np
+from datetime import datetime,time
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -6,10 +7,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import transformers
 from transformers import AutoModel, BertTokenizerFast
-from transformers import AdamW
+from torch.optim import Adam
 from sklearn.utils.class_weight import compute_class_weight
+from torch.utils.data import TensorDataset,DataLoader,RandomSampler,SequentialSampler
 
-device = torch.device('cuda')
+#device = torch.device('cuda')
 
 # Import CSV for train/validation
 df = pd.read_csv('pamazonProducts.csv')
@@ -67,6 +69,23 @@ test_seq = torch.tensor(tokens_test['input_ids'])
 test_mask = torch.tensor(tokens_test['attention_mask'])
 test_y = torch.tensor(test_labels.tolist())
 
+batch_size = 32
+
+train_data = TensorDataset(train_seq, train_mask, train_y)
+
+train_sampler = RandomSampler(train_data)
+
+train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
+
+val_data = TensorDataset(val_seq, val_mask, val_y)
+
+val_sampler = SequentialSampler(val_data)
+
+val_dataloader = DataLoader(val_data, sampler = val_sampler, batch_size=batch_size)
+
+for param in bert.parameters():
+    param.requires_grad = False
+
 # Implement Bert Model for sentiment analysis
 class BERT_Arch(nn.Module):
     def __init__(self,bert):
@@ -76,6 +95,7 @@ class BERT_Arch(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.relu = nn.ReLU()
         self.fc1 = nn.Linear(768,512)
+        self.fc2 = nn.Linear(512,2)
         self.softmax = nn.LogSoftmax(dim=1)
     
     def forward(self,sent_id,mask):
@@ -90,9 +110,19 @@ class BERT_Arch(nn.Module):
     
 # Passing model to Bert implementation
 model = BERT_Arch(bert)
-model = model.to(device)
+#model = model.to(device)
 
 # Define optimizer
-optimizer = AdamW(model.parameters(),lr =1e-5)
+optimizer = Adam(model.parameters(),lr=1e-5)
 
 # Need Data Before Further implementation
+y = np.stack((train_labels))
+class_weights = compute_class_weight('balanced',classes=np.unique(y),y=y)
+print("Class Weights:",class_weights)
+
+weights = torch.tensor(class_weights,dtype=torch.float)
+cross_entropy = nn.NLLLoss(weight=weights)
+
+epochs = 10
+
+
