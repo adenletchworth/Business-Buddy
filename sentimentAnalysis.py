@@ -91,12 +91,11 @@ class BERT_Arch(nn.Module):
     def __init__(self,bert):
         super(BERT_Arch, self).__init__()
         self.bert = bert
-
         self.dropout = nn.Dropout(0.1)
         self.relu = nn.ReLU()
         self.fc1 = nn.Linear(768,512)
         self.fc2 = nn.Linear(512,2)
-        self.softmax = nn.LogSoftmax(dim=1)
+        self.sigmoid = nn.Sigmoid()
     
     def forward(self,sent_id,mask):
         _, cls_hs = self.bert(sent_id, attention_mask=mask, return_dict=False)
@@ -104,7 +103,7 @@ class BERT_Arch(nn.Module):
         x = self.relu(x)
         x = self.dropout(x)
         x = self.fc2(x)
-        x = self.softmax(x)
+        x = self.sigmoid(x)
 
         return x
     
@@ -115,8 +114,7 @@ model = BERT_Arch(bert)
 # Define optimizer
 optimizer = Adam(model.parameters(),lr=1e-5)
 
-# Need Data Before Further implementation
-y = np.stack((train_labels))
+y = train_labels.values
 class_weights = compute_class_weight('balanced',classes=np.unique(y),y=y)
 print("Class Weights:",class_weights)
 
@@ -125,4 +123,100 @@ cross_entropy = nn.NLLLoss(weight=weights)
 
 epochs = 10
 
+def train():
+    
+    model.train()
+    total_loss, total_accuracy = 0, 0
+  
+    total_preds=[]
+  
+    for step,batch in enumerate(train_dataloader):
+        
+        if step % 50 == 0 and not step == 0:
+            print('  Batch {:>5,}  of  {:>5,}.'.format(step, len(train_dataloader)))
+ 
+        sent_id, mask, labels = batch
+        
+        model.zero_grad()        
 
+        preds = model(sent_id, mask)
+
+        loss = cross_entropy(preds, labels)
+
+        total_loss = total_loss + loss.item()
+
+        loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+        optimizer.step()
+
+        preds=preds.detach().cpu().numpy()
+
+    total_preds.append(preds)
+
+    avg_loss = total_loss / len(train_dataloader)
+  
+    total_preds  = np.concatenate(total_preds, axis=0)
+
+
+    return avg_loss, total_preds
+
+def evaluate():
+    
+    print("\nEvaluating...")
+  
+    model.eval()
+
+    total_loss, total_accuracy = 0, 0
+    
+    total_preds = []
+
+    for step,batch in enumerate(val_dataloader):
+        
+        if step % 50 == 0 and not step == 0:
+
+            print('  Batch {:>5,}  of  {:>5,}.'.format(step, len(val_dataloader)))
+
+        sent_id, mask, labels = batch
+
+        with torch.no_grad():
+            
+            preds = model(sent_id, mask)
+
+            loss = cross_entropy(preds,labels)
+
+            total_loss = total_loss + loss.item()
+
+            preds = preds.detach().cpu().numpy()
+
+            total_preds.append(preds)
+
+    avg_loss = total_loss / len(val_dataloader) 
+
+    total_preds  = np.concatenate(total_preds, axis=0)
+
+    return avg_loss, total_preds
+
+best_valid_loss = float('inf')
+
+train_losses=[]
+valid_losses=[]
+
+for epoch in range(epochs):
+     
+    print('\n Epoch {:} / {:}'.format(epoch + 1, epochs))
+    
+    train_loss, _ = train()
+    
+    valid_loss, _ = evaluate()
+    
+    if valid_loss < best_valid_loss:
+        best_valid_loss = valid_loss
+        torch.save(model.state_dict(), 'saved_weights.pt')
+    
+    train_losses.append(train_loss)
+    valid_losses.append(valid_loss)
+    
+    print(f'\nTraining Loss: {train_loss:.3f}')
+    print(f'Validation Loss: {valid_loss:.3f}')
