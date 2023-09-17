@@ -203,6 +203,7 @@ best_valid_loss = float('inf')
 train_losses=[]
 valid_losses=[]
 
+"""
 for epoch in range(epochs):
      
     print('\n Epoch {:} / {:}'.format(epoch + 1, epochs))
@@ -220,3 +221,15 @@ for epoch in range(epochs):
     
     print(f'\nTraining Loss: {train_loss:.3f}')
     print(f'Validation Loss: {valid_loss:.3f}')
+"""
+
+path = 'saved_weights.pt'
+model.load_state_dict(torch.load(path))
+
+with torch.no_grad():
+    preds = model(test_seq, test_mask)
+    preds = preds.detach().cpu().numpy()
+
+preds = np.argmax(preds, axis = 1)
+print(classification_report(test_y, preds))
+
