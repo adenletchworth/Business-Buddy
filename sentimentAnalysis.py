@@ -11,7 +11,10 @@ from torch.optim import Adam
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import TensorDataset,DataLoader,RandomSampler,SequentialSampler
 
-#device = torch.device('cuda')
+gpu = True
+
+if gpu:
+    device = torch.device('cuda')
 
 # Import CSV for train/validation
 df = pd.read_csv('pamazonProducts.csv')
@@ -109,7 +112,8 @@ class BERT_Arch(nn.Module):
     
 # Passing model to Bert implementation
 model = BERT_Arch(bert)
-#model = model.to(device)
+if gpu:
+    model = model.to(device)
 
 # Define optimizer
 optimizer = Adam(model.parameters(),lr=1e-5)
@@ -119,6 +123,8 @@ class_weights = compute_class_weight('balanced',classes=np.unique(y),y=y)
 print("Class Weights:",class_weights)
 
 weights = torch.tensor(class_weights,dtype=torch.float)
+if gpu:
+    weights = weights.to(device)
 cross_entropy = nn.NLLLoss(weight=weights)
 
 epochs = 10
@@ -134,7 +140,10 @@ def train():
         
         if step % 50 == 0 and not step == 0:
             print('  Batch {:>5,}  of  {:>5,}.'.format(step, len(train_dataloader)))
- 
+
+        if gpu:
+            batch = [r.to(device) for r in batch]
+
         sent_id, mask, labels = batch
         
         model.zero_grad()        
@@ -178,6 +187,9 @@ def evaluate():
 
             print('  Batch {:>5,}  of  {:>5,}.'.format(step, len(val_dataloader)))
 
+        if gpu:
+            batch = [t.to(device) for t in batch]
+            
         sent_id, mask, labels = batch
 
         with torch.no_grad():
