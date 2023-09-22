@@ -5,6 +5,8 @@ from torch.utils.data import Dataset, DataLoader,RandomSampler
 import torch
 from sklearn.model_selection import train_test_split
 from collections import defaultdict
+import torch.nn as nn
+import torch.nn.functional as F
 
 # Import Dataset
 df = pd.read_csv('small_data.csv')
@@ -15,7 +17,7 @@ df = df[['review_body','target']]
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 #Import Model (light-weight)
-model = BertModel.from_pretrained("bert-base-uncased")
+bert = BertModel.from_pretrained("bert-base-uncased")
 
 
 # Pytorch Dataset
@@ -122,11 +124,46 @@ val_data_loader = create_data_loader(df_val, tokenizer, MAX_LEN, BATCH_SIZE)
 
 test_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN, BATCH_SIZE)
 
+class Bert_Classifier(nn.Module):
+
+    # Define Constructor
+    def __init__(self,classes):
+
+        super(Bert_Classifier, self).__init__() # Initialize Parent Class
+
+        self.bert = bert # Set Model 
+
+        self.dropout = nn.Dropout(0.1) # Create dropout layer to prevent overfitting
+
+        self.out = nn.Linear(self.bert.config.hidden_size, classes) # map hidden layer outputs to class probabilities
+
+    # Define forward pass
+    def forward(self, input_ids, attention_mask):
+        
+        _, pooled_output = self.bert(
+
+            input_ids=input_ids,
+
+            attention_mask=attention_mask,
+
+            return_dict = False
+        )
+
+        output = self.dropout(pooled_output)
+
+        return self.out(output)
+
+
+num_classes = 3
+
+model = Bert_Classifier(num_classes)
+
 data = next(iter(train_data_loader))
 
-print(data['input_ids'].shape)
+input_ids = data['input_ids']
 
-print(data['attention_mask'].shape)
+attention_mask = data['attention_mask'] 
 
-print(data['targets'].shape)
+output = model(input_ids,attention_mask)
 
+print(F.softmax(output, dim=1))
