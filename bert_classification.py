@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from collections import defaultdict
 
 # Import Dataset
-df = pd.read_csv('./Data/small_data.csv')
+df = pd.read_csv('Data/small_data.csv')
 
 df = df[['review_body','target']]
 
@@ -18,9 +18,6 @@ tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 #Import Model (light-weight)
 bert = BertModel.from_pretrained("bert-base-uncased")
-
-# Import CSV for fine tuning
-ft_df = pd.read_csv('./Data/ft.csv')
 
 # Pytorch Dataset
 class tensorDataset(Dataset):
@@ -117,8 +114,6 @@ def create_data_loader(df, tokenizer, max_len, batch_size):
 
 BATCH_SIZE = 16 # Define Number of Batches
 
-ft_df['batch_size'] = BATCH_SIZE # Add to df
-
 MAX_LEN = 64 # Define Max length for Sequences
 
 # LOAD DATA FOR TRAIN, VALIDATION and TESTING.
@@ -172,11 +167,9 @@ output = model(input_ids,attention_mask)
 
 # Define number of epochs
 EPOCHS = 10
-ft_df['epochs'] = EPOCHS
 
 lr = 2e-5 # Set learning rate
 optimizer = optim.AdamW(params=model.parameters(), lr=5e-5) # Pick Optimizer
-ft_df['learning_rate'] = lr
 
 # Calculate steps
 total_steps = len(train_data_loader) * EPOCHS
