@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from collections import defaultdict
 
 # Import Dataset
-df = pd.read_csv('small_data.csv')
+df = pd.read_csv('./Data/small_data.csv')
 
 df = df[['review_body','target']]
 
@@ -20,7 +20,7 @@ tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 bert = BertModel.from_pretrained("bert-base-uncased")
 
 # Import CSV for fine tuning
-ft_df = pd.read_csv('ft.csv')
+ft_df = pd.read_csv('./Data/ft.csv')
 
 # Pytorch Dataset
 class tensorDataset(Dataset):
@@ -175,7 +175,7 @@ EPOCHS = 10
 ft_df['epochs'] = EPOCHS
 
 lr = 2e-5 # Set learning rate
-optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False) # Pick Optimizer
+optimizer = optim.AdamW(params=model.parameters(), lr=5e-5) # Pick Optimizer
 ft_df['learning_rate'] = lr
 
 # Calculate steps
@@ -330,14 +330,12 @@ for epoch in range(EPOCHS):
 
         best_accuracy = val_acc
 
+test_acc, _ = eval_model(
+    model,
+    test_data_loader,
+    loss_fn,
+    len(df_test)
+)
 
-ft_df['train_accuracy'] = history['train_acc']
-
-ft_df['train_loss'] = history['train_loss']
-
-ft_df['val_accuracy'] = history['val_acc']
-
-ft_df['val_loss'] = history['val_loss']
-
-ft_df.to_csv('ft.csv',index=False)
+print(test_acc.item())
 
