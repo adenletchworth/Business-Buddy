@@ -1,36 +1,55 @@
 import pandas as pd
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import WordPunctTokenizer
-import nltk
+from nltk.tokenize import word_tokenize
 from gensim.corpora import Dictionary
 from gensim.models import CoherenceModel, LdaModel
+from gensim.models.phrases import Phrases, Phraser
+import re
 
-df = pd.read_csv('Data/small_data.csv')
+df = pd.read_csv('Data/yelp_data.csv')
+
+df = df[:250]
 
 # Initialize Lemmatizer
 lz = WordNetLemmatizer()
 
-# Initialize Tokenizer
-tokenizer = nltk.tokenize.WordPunctTokenizer()
-
 # Initialize Stop words
 stop_words = stopwords.words("english")
 
-
-# Takes Input text and outputs processed input text
+# Takes Input, removes punctuation and tokenizes
 def process_text(text):
+    
+    # Remove punctuation from text
+    text = re.sub(r'[_"\-;%()|+&=*%.,!?:#$@\[\]/]', ' ', text)
 
     # Tokenizes input text
-    words = tokenizer.tokenize(text)
+    words = word_tokenize(text)
 
-    # Lemmatizes input text
-    lemmatized_words = [lz.lemmatize(word) for word in words]
+    return words
+
+# Get LoL of tokens
+tokens = list(map(process_text, df.text))
+
+# Build the bigram and trigram models
+bigram = Phrases(tokens, min_count=5, threshold=100) # higher threshold fewer phrases.
+#trigram = Phrases(bigram[tokens], threshold=100)  
+
+# Faster way to get a sentence clubbed as a trigram/bigram
+bigram_mod = Phraser(bigram)
+#trigram_mod = Phraser(trigram)
+
+def process_tokens(tokens):
 
     # lowercases and filters words
-    filtered_words = [word.lower() for word in lemmatized_words if word.lower() not in stop_words]
+    filtered_words = [word.lower() for word in tokens if word.lower() not in stop_words]
 
-    processed_text = ' '.join(filtered_words)
+    bigram_doc = bigram_mod[filtered_words]
+
+    #trigram_doc = [trigram_mod[bigram_mod[doc]] for doc in filtered_words]
+
+    # Lemmatizes input text
+    processed_text = [lz.lemmatize(word) for word in bigram_doc]
 
     return processed_text
 
@@ -40,7 +59,7 @@ def add_stop_words(words):
     stop_words.extend(words)
 
 # creates a list of lists of stop words
-reviews = [list(map(process_text, df.review_body))]
+reviews = list(map(process_tokens, tokens))
 
 # Create Dictionary
 id2word = Dictionary(reviews)
@@ -59,4 +78,5 @@ coherence_lda = coherence_model_lda.get_coherence()
 
 print('Coherence Score: ', coherence_lda)
 
-# NEED TO IMPLEMENT OPTIMAL NUMBER OF LABELS, NEED FINAL DATA
+
+
