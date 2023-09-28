@@ -6,10 +6,11 @@ from gensim.corpora import Dictionary
 from gensim.models import CoherenceModel, LdaModel
 from gensim.models.phrases import Phrases, Phraser
 import re
+import pyLDAvis.gensim_models
 
-df = pd.read_csv('Data/yelp_data.csv')
+filename = './Data/yelp_data.csv'
 
-df = df[:250]
+df = pd.read_csv(filename)
 
 # Initialize Lemmatizer
 lz = WordNetLemmatizer()
@@ -21,7 +22,8 @@ stop_words = stopwords.words("english")
 def process_text(text):
     
     # Remove punctuation from text
-    text = re.sub(r'[_"\-;%()|+&=*%.,!?:#$@\[\]/]', ' ', text)
+    text = re.sub(r'[_"\-;%()|+&=*%.,!?\'\":#$@\[\]/]', ' ', text)
+    text = re.sub(r'\b\w{1,2}\b',' ',text)
 
     # Tokenizes input text
     words = word_tokenize(text)
@@ -46,8 +48,6 @@ def process_tokens(tokens):
 
     bigram_doc = bigram_mod[filtered_words]
 
-    #trigram_doc = [trigram_mod[bigram_mod[doc]] for doc in filtered_words]
-
     # Lemmatizes input text
     processed_text = [lz.lemmatize(word) for word in bigram_doc]
 
@@ -68,7 +68,7 @@ id2word = Dictionary(reviews)
 corpus = [id2word.doc2bow(text) for text in reviews]
 
 # Initialize LDA
-lda = LdaModel(corpus,5,id2word)
+lda = LdaModel(corpus,10,id2word)
 
 # Initialize Coherence Model
 coherence_model_lda = CoherenceModel(model=lda, texts=reviews, dictionary=id2word,coherence='u_mass')
@@ -77,6 +77,16 @@ coherence_model_lda = CoherenceModel(model=lda, texts=reviews, dictionary=id2wor
 coherence_lda = coherence_model_lda.get_coherence()
 
 print('Coherence Score: ', coherence_lda)
+
+
+# Add labels to the pyLDAvis visualization
+vis = pyLDAvis.gensim_models.prepare(lda, 
+                                     corpus, 
+                                     dictionary=lda.id2word)  
+
+
+
+pyLDAvis.save_html(vis, 'lda_visualization.html')
 
 
 
