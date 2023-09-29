@@ -22,7 +22,7 @@ stop_words = stopwords.words("english")
 def process_text(text):
     
     # Remove punctuation from text
-    text = re.sub(r'[_"\-;%()|+&=*%.,!?\'\":#$@\[\]/]', ' ', text)
+    text = re.sub(r'[_"\-;%()|+&=*%.,\'!?\:#$@\[\]/]', ' ', text)
     text = re.sub(r'\b\w{1,2}\b',' ',text)
 
     # Tokenizes input text
@@ -34,7 +34,7 @@ def process_text(text):
 tokens = list(map(process_text, df.text))
 
 # Build the bigram and trigram models
-bigram = Phrases(tokens, min_count=5, threshold=100) # higher threshold fewer phrases.
+bigram = Phrases(tokens, min_count=5, threshold=10e-5) # higher threshold fewer phrases.
 #trigram = Phrases(bigram[tokens], threshold=100)  
 
 # Faster way to get a sentence clubbed as a trigram/bigram
@@ -47,6 +47,8 @@ def process_tokens(tokens):
     filtered_words = [word.lower() for word in tokens if word.lower() not in stop_words]
 
     bigram_doc = bigram_mod[filtered_words]
+
+    #trigram_doc = trigram_mod[bigram_doc]
 
     # Lemmatizes input text
     processed_text = [lz.lemmatize(word) for word in bigram_doc]
@@ -68,7 +70,7 @@ id2word = Dictionary(reviews)
 corpus = [id2word.doc2bow(text) for text in reviews]
 
 # Initialize LDA
-lda = LdaModel(corpus,10,id2word)
+lda = LdaModel(corpus,5,id2word)
 
 # Initialize Coherence Model
 coherence_model_lda = CoherenceModel(model=lda, texts=reviews, dictionary=id2word,coherence='u_mass')
