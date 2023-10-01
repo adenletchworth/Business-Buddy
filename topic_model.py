@@ -27,6 +27,7 @@ NUM_TOPICS = 5
 # Add stop words to be filtered out
 add_stop_words = lambda words: stop_words.extend(words)
 
+# Lemmatizes text and filters according to POS
 def get_lemma(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
     processed_text = []
     for text in texts:
@@ -34,6 +35,7 @@ def get_lemma(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
         processed_text.append(" ".join(token.lemma_ for token in doc if token.pos_ in allowed_postags))
     return processed_text
 
+# Processes text using spacy preprocess
 def filter_tokens(texts):
     processed_text = []
     for text in texts:
@@ -41,8 +43,10 @@ def filter_tokens(texts):
         processed_text.append(processed)
     return processed_text
 
+# Pass to lemma function
 lemma = get_lemma(df.review_body)
 
+# Pass to spacy process function
 final_data=  filter_tokens(lemma)
         
 '''
