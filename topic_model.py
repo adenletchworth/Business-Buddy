@@ -1,79 +1,85 @@
 import pandas as pd
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
 from gensim.corpora import Dictionary
 from gensim.models import CoherenceModel, LdaModel
 from gensim.models.phrases import Phrases, Phraser
+from gensim.utils import simple_preprocess
 import re
 import pyLDAvis.gensim_models
+import spacy
 
-filename = './Data/yelp_data.csv'
+filename = './Data/small_data.csv'
 
 df = pd.read_csv(filename)
 
-# Initialize Lemmatizer
-lz = WordNetLemmatizer()
+
+# Initialize Spacy Processor
+nlp = spacy.load('en_core_web_sm',disable=['parser','ner'])
 
 # Initialize Stop words
 stop_words = stopwords.words("english")
 
-# Takes Input, removes punctuation and tokenizes
-def process_text(text):
-    
-    # Remove punctuation from text
-    text = re.sub(r'[_"\-;%()|+&=*%.,\'!?\:#$@\[\]/]', ' ', text)
-    text = re.sub(r'\b\w{1,2}\b',' ',text)
+# Define Hyperparameters
+ALPHA = 0.1
+BETA = 0.1
+NUM_TOPICS = 5
 
-    # Tokenizes input text
-    words = word_tokenize(text)
+# Add stop words to be filtered out
+add_stop_words = lambda words: stop_words.extend(words)
 
-    return words
+def get_lemma(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
+    processed_text = []
+    for text in texts:
+        doc = nlp(text)
+        processed_text.append(" ".join(token.lemma_ for token in doc if token.pos_ in allowed_postags))
+    return processed_text
 
-# Get LoL of tokens
-tokens = list(map(process_text, df.text))
+def filter_tokens(texts):
+    processed_text = []
+    for text in texts:
+        processed = simple_preprocess(text,deacc=True)
+        processed_text.append(processed)
+    return processed_text
 
+lemma = get_lemma(df.review_body)
+
+final_data=  filter_tokens(lemma)
+        
+'''
 # Build the bigram and trigram models
 bigram = Phrases(tokens, min_count=5, threshold=10e-5) # higher threshold fewer phrases.
-#trigram = Phrases(bigram[tokens], threshold=100)  
+trigram = Phrases(bigram[tokens], threshold=100)  
 
 # Faster way to get a sentence clubbed as a trigram/bigram
 bigram_mod = Phraser(bigram)
-#trigram_mod = Phraser(trigram)
-
-def process_tokens(tokens):
-
-    # lowercases and filters words
-    filtered_words = [word.lower() for word in tokens if word.lower() not in stop_words]
-
-    bigram_doc = bigram_mod[filtered_words]
-
-    #trigram_doc = trigram_mod[bigram_doc]
-
-    # Lemmatizes input text
-    processed_text = [lz.lemmatize(word) for word in bigram_doc]
-
-    return processed_text
-
-# Add stop words to be filtered out
-def add_stop_words(words):
-
-    stop_words.extend(words)
-
-# creates a list of lists of stop words
-reviews = list(map(process_tokens, tokens))
+trigram_mod = Phraser(trigram)
+'''
 
 # Create Dictionary
-id2word = Dictionary(reviews)
+id2word = Dictionary(final_data)
 
 # Create Corpus
-corpus = [id2word.doc2bow(text) for text in reviews]
+corpus = [id2word.doc2bow(text) for text in final_data]
 
 # Initialize LDA
-lda = LdaModel(corpus,5,id2word)
+lda = LdaModel(
+    corpus=corpus,
+    id2word=id2word,
+    num_topics=NUM_TOPICS,
+    random_state=100,
+    update_every=1,
+    chunksize=100,
+    passes=10,
+    alpha='auto'
+)
 
 # Initialize Coherence Model
-coherence_model_lda = CoherenceModel(model=lda, texts=reviews, dictionary=id2word,coherence='u_mass')
+coherence_model_lda = CoherenceModel(
+    model=lda, 
+    texts=final_data, 
+    dictionary=id2word,
+    coherence='u_mass'
+)
 
 # Get coherence score
 coherence_lda = coherence_model_lda.get_coherence()
