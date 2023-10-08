@@ -5,7 +5,6 @@ from umap import UMAP
 from bertopic.representation import KeyBERTInspired,MaximalMarginalRelevance,PartOfSpeech
 from sklearn.feature_extraction.text import CountVectorizer
 from hdbscan import HDBSCAN
-from keybert import KeyBERT
 
 df = pd.read_csv('Data/yelp_data.csv')
 
@@ -21,9 +20,9 @@ pos_model = PartOfSpeech("en_core_web_sm")
 mmr_model = MaximalMarginalRelevance(diversity=0.3)
 
 representation_model={
-        key_model,
-        pos_model,
-        mmr_model
+        "KeyBERT":key_model,
+        "POS":pos_model,
+        "MMR":mmr_model
 }
 
 embeddings = embedded_model.encode(doc)
@@ -43,6 +42,7 @@ topics, probs = topic_model.fit_transform(doc,embeddings)
 keybert_topic_labels = {topic: " | ".join(list(zip(*values))[0][:3]) for topic, values in topic_model.topic_aspects_["KeyBERT"].items()}
 topic_model.set_topic_labels(keybert_topic_labels)
 
+print(keybert_topic_labels)
 print(topic_model.get_topic_info())
 
 
