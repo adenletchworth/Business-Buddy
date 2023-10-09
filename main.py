@@ -1,12 +1,11 @@
 import bert_classification as bc
+from bert_topic import get_topics
+import pandas as pd
 
+df = pd.read_csv('Data/yelp_data.csv')
 
-while(True):
-    review_text = input()
+doc = df.text
 
-    if review_text == 'break':
-        break
+topics = get_topics(doc)
 
-    print(bc.classify(review_text))
-
-
+print(topics)
