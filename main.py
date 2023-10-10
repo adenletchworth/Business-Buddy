@@ -8,4 +8,11 @@ doc = df.text
 
 topics = get_topics(doc)
 
-print(topics)
+topic_name = [name for name in topics['CustomName']]
+doc_sentiment = [bc.classify(doc) for doc in topics['Representative_Docs']]
+
+output = list(zip(topic_name,doc_sentiment))
+
+print(doc for doc in topics['Representative_Docs'])
+
+
