@@ -10,9 +10,9 @@ topics = get_topics(doc)
 
 topic_name = [name for name in topics['CustomName']]
 doc_sentiment = [bc.classify(doc) for doc in topics['Representative_Docs']]
-
 output = list(zip(topic_name,doc_sentiment))
 
-print(doc for doc in topics['Representative_Docs'])
-
-
+for item in output:
+    topic, sent = item
+    print(topic)
+    print(sent)
