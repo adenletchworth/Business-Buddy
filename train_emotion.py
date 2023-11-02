@@ -1,109 +1,75 @@
+from collections import defaultdict
+import numpy as np
+from sklearn.metrics import classification_report
+from tqdm import tqdm
+from transformers import DistilBertTokenizer, DistilBertModel, get_linear_schedule_with_warmup
 import pandas as pd
-from transformers import DistilBertTokenizer, DistilBertModel
-from torch.utils.data import Dataset, DataLoader, RandomSampler
 import torch
 
+
 # Import Tokenizer
-bert_tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
 
 # Import BERT model
-bert_model = DistilBertModel.from_pretrained("distilbert-base-uncased")
-
-# Pytorch Dataset
-class tensorDataset(Dataset):
-
-    # Initializes dataset
-    def __init__(self, text, emotion, tokenizer, max_len):
-
-        self.text = text
-        self.emotion = emotion
-        self.tokenizer = tokenizer
-        self.max_len = max_len
-
-
-    # Returns length of dataset
-    def __len__(self):
-        return len(self.text)
-
-    # Tokenizes and Encodes Input Returns Dictionary
-    def __getitem__(self, item):
-
-        text = str(self.reviews[item])
-        emotion = self.targets[item]
-
-        encoding = self.tokenizer.encode_plus(
-  
-            text, # Data for processing
-
-            max_length=self.max_len, # Max length of sequences 
-
-            add_special_tokens=True, # Includes CLS and SEP tokens for classification
-
-            return_token_type_ids=False, # For Single Sequence Taks (Sentiment Analysis)
-
-            padding='max_length', # Pads Sequences to max_length
-
-            truncation=True,
-
-            return_attention_mask=True, # Determines which tokens are meaningful
-
-            return_tensors='pt',  # Return PyTorch tensors
-        )
-        return {
-
-            'text': text,
-
-            'input_ids': encoding['input_ids'].flatten(),
-
-            'attention_mask': encoding['attention_mask'].flatten(),
-
-            'targets': torch.tensor(emotion, dtype=torch.long)
-        }
-
-
-def create_data_loader(df, tokenizer, max_len, batch_size):
-
-    dataset = tensorDataset(
-    
-        reviews=df['text'].to_numpy(), # passes label to torch dataset
-
-        targets=df['emotion'].to_numpy(), # passes target to torch dataset
-
-        tokenizer=tokenizer, # passes specified tokenizer
-
-        max_len=max_len # passes set max length 
-    )
-
-    return DataLoader(
-
-        dataset, # Passing datatset
-
-        batch_size=batch_size, # Defines batch size for data
-
-        sampler = RandomSampler(dataset),
-
-        # num_workers=4 Workers for Parallel Processing
-
-    )
-
-BATCH_SIZE = 32 # Define Number of Batches
-
-MAX_LEN = 64 # Define Max length for Sequences
+model = DistilBertModel.from_pretrained("distilbert-base-uncased",output_hidden_states=True)
 
 # LOAD DATA FOR TRAIN, VALIDATION and TESTING.
-
 df_train = pd.read_csv("./Data/emotions.csv")
+df_test = pd.read_csv("./Data/emotions_test.csv")
+df_val = pd.read_csv("./Data/emotions_val.csv")
 
-df_test = pd.read_csv("test.txt",delimiter=";",header=None)
+class EmotionDataset(torch.utils.data.Dataset):
 
-df_val = pd.read_csv("val.txt",delimiter=";",header=None)
+    def __init__(self, emotion_data):
+        self.labels = emotion_data.emotion
+        self.text = emotion_data.text
 
-train_data_loader = create_data_loader(df_train, bert_tokenizer, MAX_LEN, BATCH_SIZE)
+    def __len__(self):
+        return len(self.text)
+    
+    def __getitem__(self,index):
 
-val_data_loader = create_data_loader(df_val, bert_tokenizer, MAX_LEN, BATCH_SIZE)
+        text_item = self.text[index]
+        label_item = self.labels[index]
 
-test_data_loader = create_data_loader(df_test, bert_tokenizer, MAX_LEN, BATCH_SIZE)
+        encoding= tokenizer.encode_plus(
+            text_item,
+            padding='max_length',
+            max_length=32,
+            truncation=True,
+            return_tensors='pt'
+        )
 
+        return {
+           'text': text_item,
+           'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'label': torch.tensor(label_item,dtype=torch.int)
+        }
 
+def create_data_loader(df, batch_size):
+
+    dataset = EmotionDataset(df)
+
+    return torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size, 
+        sampler=torch.utils.data.RandomSampler(dataset),
+    )
+
+class BertClassifier(torch.nn.Module):
+    def __init__(self, num_classes, dropout=0.5):
+        super(BertClassifier, self).__init__()
+        self.bert = model  
+        self.dropout = torch.nn.Dropout(p=dropout) 
+        self.linear = torch.nn.Linear(768, num_classes)
+        self.relu = torch.nn.ReLU()
+
+    def forward(self, input_id, mask):
+        _, pooled_output = self.bert(input_ids=input_id, attention_mask=mask, return_dict=False)
+        dropout_output = self.dropout(pooled_output[0])
+        linear_output = self.linear(dropout_output)
+        output_layer = self.relu(linear_output)
+        return output_layer
 
 
