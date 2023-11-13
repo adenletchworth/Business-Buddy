@@ -1,3 +1,5 @@
 
-/best_model_state.bin
+/Models/
 /__pycache__
+/Data/
+/env

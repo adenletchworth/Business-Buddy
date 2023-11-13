@@ -2,17 +2,19 @@ import bert_classification as bc
 from bert_topic import get_topics
 import pandas as pd
 
-df = pd.read_csv('Data/yelp_data.csv')
+df = pd.read_csv('Data/small_data.csv')
 
-doc = df.text
+doc = df.review_body
 
-topics = get_topics(doc)
+# Assuming get_topics returns a dictionary
+topics_data = get_topics(doc)
 
-topic_name = [name for name in topics['CustomName']]
-doc_sentiment = [bc.classify(doc) for doc in topics['Representative_Docs']]
-output = list(zip(topic_name,doc_sentiment))
+# Assuming 'CustomName' and 'Representative_Docs' are keys in the dictionary
+print(topics_data.columns)
+topics = pd.DataFrame(topics_data)
 
-for item in output:
-    topic, sent = item
-    print(topic)
-    print(sent)
+# Assuming bc is a sentiment classifier
+topics['doc_sentiment'] = [bc.classify(doc) for doc in topics_data['Representative_Docs']]
+
+# Save to CSV
+topics.to_csv('output_topics.csv', index=False)
