@@ -45,7 +45,7 @@ class Bert_Classifier(nn.Module):
 
 model = Bert_Classifier(len(class_names))
 
-model.load_state_dict(torch.load('best_model_state.bin'))
+model.load_state_dict(torch.load('./Models/best_model_state.bin'))
 
 def classify(review_text):
 

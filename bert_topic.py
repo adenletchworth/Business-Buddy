@@ -15,7 +15,7 @@ def get_topics(doc):
         embedded_model = SentenceTransformer("all-MiniLM-l6-v2")
 
         # For Controlling Number of Topics
-        hdbscan_model = HDBSCAN(min_cluster_size=150, metric='euclidean', cluster_selection_method='eom', prediction_data=True)
+        hdbscan_model = HDBSCAN(min_cluster_size=12, metric='euclidean', cluster_selection_method='eom', prediction_data=True)
 
         # For Removing Stop Words, Post Encoding
         vectorizer_model = CountVectorizer(stop_words="english", min_df=2, ngram_range=(1, 2))
@@ -54,6 +54,8 @@ def get_topics(doc):
         # Automatically generate labels using KeyBERT
         keybert_topic_labels = {topic: " | ".join(list(zip(*values))[0][:3]) for topic, values in topic_model.topic_aspects_["KeyBERT"].items()}
         topic_model.set_topic_labels(keybert_topic_labels)
+
+        print(topic_model.get_topic_info())
 
         return topic_model.get_topic_info()
 
